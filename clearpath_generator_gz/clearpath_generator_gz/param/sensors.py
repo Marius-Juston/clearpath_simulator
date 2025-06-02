@@ -34,9 +34,11 @@ import os
 
 from clearpath_config.common.utils.yaml import write_yaml
 from clearpath_config.sensors.types.cameras import (
+    AxisCamera,
     BaseCamera,
     FlirBlackfly,
     IntelRealsense,
+    LuxonisOAKD,
     StereolabsZed,
 )
 from clearpath_config.sensors.types.gps import (
@@ -46,9 +48,28 @@ from clearpath_config.sensors.types.gps import (
     NovatelSmart7,
     SwiftNavDuro,
 )
-from clearpath_config.sensors.types.imu import BaseIMU, CHRoboticsUM6, Microstrain, RedshiftUM7
-from clearpath_config.sensors.types.lidars_2d import BaseLidar2D, HokuyoUST, SickLMS1XX
-from clearpath_config.sensors.types.lidars_3d import BaseLidar3D, VelodyneLidar
+from clearpath_config.sensors.types.imu import (
+    BaseIMU,
+    CHRoboticsUM6,
+    Microstrain,
+    PhidgetsSpatial,
+    RedshiftUM7,
+)
+from clearpath_config.sensors.types.ins import (
+    BaseINS,
+    Fixposition,
+)
+from clearpath_config.sensors.types.lidars_2d import (
+    BaseLidar2D,
+    HokuyoUST,
+    SickLMS1XX
+)
+from clearpath_config.sensors.types.lidars_3d import (
+    BaseLidar3D,
+    OusterOS1,
+    SeyondLidar,
+    VelodyneLidar,
+)
 from clearpath_config.sensors.types.sensor import BaseSensor
 
 
@@ -59,6 +80,7 @@ class MessageType():
         IMU = 'sensor_msgs/msg/Imu'
         LASER_SCAN = 'sensor_msgs/msg/LaserScan'
         NAVSAT = 'sensor_msgs/msg/NavSatFix'
+        ODOM = 'nav_msgs/msg/Odometry'
         POINT_CLOUD = 'sensor_msgs/msg/PointCloud2'
 
     class GZ():
@@ -67,6 +89,7 @@ class MessageType():
         IMU = 'gz.msgs.IMU'
         LASER_SCAN = 'gz.msgs.LaserScan'
         NAVSAT = 'gz.msgs.NavSat'
+        ODOM = 'gz.msgs.Odometry'
         POINT_CLOUD = 'gz.msgs.PointCloudPacked'
 
 
@@ -273,21 +296,63 @@ class SensorParam():
                 gz_type=MessageType.GZ.NAVSAT,
             )
 
+    class INSParam(BaseParam):
+        def __init__(
+            self,
+            sensor: BaseINS,
+            namespace: str,
+            param_path: str,
+            namespace_prefix: str = None,
+        ) -> None:
+            super().__init__(sensor, namespace, param_path, namespace_prefix)
+
+            for i in range(len(sensor.antennas)):
+                self.param_file.add(
+                    ros_topic=self.get_ros_topic(f'gps_{i}/fix'),
+                    gz_topic=self.get_gz_topic(f'gps_{i}/fix'),
+                    ros_type=MessageType.ROS.NAVSAT,
+                    gz_type=MessageType.GZ.NAVSAT,
+                )
+            self.param_file.add(
+                ros_topic=self.get_ros_topic('imu_0/data'),
+                gz_topic=self.get_gz_topic('imu_0/data'),
+                ros_type=MessageType.ROS.IMU,
+                gz_type=MessageType.GZ.IMU,
+            )
+            self.param_file.add(
+                ros_topic=self.get_ros_topic('odom'),
+                gz_topic=self.get_gz_topic('odom'),
+                ros_type=MessageType.ROS.ODOM,
+                gz_type=MessageType.GZ.ODOM,
+            )
+
     MODEL = {
         HokuyoUST.SENSOR_MODEL: Lidar2dParam,
         SickLMS1XX.SENSOR_MODEL: Lidar2dParam,
+
+        VelodyneLidar.SENSOR_MODEL: Lidar3dParam,
+        OusterOS1.SENSOR_MODEL: Lidar3dParam,
+        SeyondLidar.SENSOR_MODEL: Lidar3dParam,
+
+        AxisCamera.SENSOR_MODEL: CameraParam,
         FlirBlackfly.SENSOR_MODEL: CameraParam,
+
         IntelRealsense.SENSOR_MODEL: RGBDCameraParam,
+        LuxonisOAKD.SENSOR_MODEL: RGBDCameraParam,
         StereolabsZed.SENSOR_MODEL: RGBDCameraParam,
+
         BaseIMU.SENSOR_MODEL: ImuParam,
         CHRoboticsUM6.SENSOR_MODEL: ImuParam,
         Microstrain.SENSOR_MODEL: ImuParam,
         RedshiftUM7.SENSOR_MODEL: ImuParam,
-        VelodyneLidar.SENSOR_MODEL: Lidar3dParam,
+        PhidgetsSpatial.SENSOR_MODEL: ImuParam,
+
         Garmin18x.SENSOR_MODEL: GPSParam,
         NovatelSmart6.SENSOR_MODEL: GPSParam,
         NovatelSmart7.SENSOR_MODEL: GPSParam,
         SwiftNavDuro.SENSOR_MODEL: GPSParam,
+
+        Fixposition.SENSOR_MODEL: INSParam,
     }
 
     def __new__(cls,
